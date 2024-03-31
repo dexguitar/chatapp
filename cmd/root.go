@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 
-	"github.com/dexguitar/chatapp/configs"
 	"github.com/spf13/cobra"
 )
 
@@ -15,17 +13,12 @@ var rootCmd = &cobra.Command{
 	Run:   func(cmd *cobra.Command, args []string) {},
 }
 
-func Execute() {
-	c, err := configs.LoadConfig(".env")
-	if err != nil {
-		panic(fmt.Sprintf("cannot load config: %s", err.Error()))
-		return
+func Execute() error {
+	rootCmd.AddCommand(runServerCmd())
+
+	if err := rootCmd.Execute(); err != nil {
+		return fmt.Errorf("%w", err)
 	}
 
-	rootCmd.AddCommand(runServerCmd(c))
-	rootCmd.AddCommand(migrateCmd(c))
-
-	if err = rootCmd.Execute(); err != nil {
-		log.Fatalf("error executing chatapp: '%s'", err.Error())
-	}
+	return nil
 }

@@ -1,2 +1,4 @@
-.idea
+.idea/
 Makefile
+.DS_Store/
+.vscode/
