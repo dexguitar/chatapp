@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dexguitar/chatapp/db"
+	"github.com/dexguitar/chatapp/internal/queue"
 
 	"github.com/dexguitar/chatapp/configs"
 	"github.com/spf13/cobra"
@@ -20,12 +21,16 @@ import (
 type application struct {
 	config *configs.Config
 	router http.Handler
+	queue  *queue.Queue
+	hub    queue.Hub
 }
 
-func newApplication(config *configs.Config, router http.Handler) *application {
+func newApplication(config *configs.Config, router http.Handler, queue *queue.Queue, hub queue.Hub) *application {
 	return &application{
 		config: config,
 		router: router,
+		queue:  queue,
+		hub:    hub,
 	}
 }
 
@@ -68,6 +73,8 @@ func runServer() func(cmd *cobra.Command, args []string) error {
 		}()
 
 		ctx := context.Background()
+
+		go app.queue.Consumer.ConsumeMessages(ctx, app.hub)
 
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, syscall.SIGTERM, os.Interrupt, syscall.SIGINT, syscall.SIGQUIT)
