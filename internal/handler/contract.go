@@ -1,15 +1,11 @@
 package handler
 
-import (
-	"context"
-
-	"github.com/dexguitar/chatapp/internal/model"
-)
+import "context"
 
 type UserService interface {
-	RegisterUser(ctx context.Context, req *model.CreateUserReq) (*model.CreateUserRes, error)
-	Login(ctx context.Context, req *model.LoginReq) (*model.LoginRes, error)
-	GetUserById(ctx context.Context, req *model.GetUserByIdReq) (*model.GetUserByIdRes, error)
+	RegisterUser(ctx context.Context, req *Request[CreateUserReq]) (*Response[*CreateUserRes], error)
+	Login(ctx context.Context, req *Request[LoginReq]) (*Response[*LoginRes], error)
+	GetUserById(ctx context.Context, req *Request[GetUserByIdReq]) (*Response[*GetUserByIdRes], error)
 }
 
 type Validator interface {

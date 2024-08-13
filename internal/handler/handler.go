@@ -4,86 +4,66 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/dexguitar/chatapp/internal/utils"
+	"github.com/monoculum/formam"
 )
 
-var ErrUserNotFound = errors.New("user not found")
+type Request[T Validator] struct {
+	Body T
+}
 
-type TargetFunc[In Validator, Out any] func(context.Context, In) (Out, error)
+type Response[T any] struct {
+	StatusCode int
+	Body       T
+}
 
-func Handle[In Validator, Out any](f TargetFunc[In, Out]) http.HandlerFunc {
+type HandleFunc[In Validator, Out any] func(context.Context, *Request[In]) (*Response[Out], error)
+
+func Handle[In Validator, Out any](f HandleFunc[In, Out]) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var in In
-		var out Out
+		request := &Request[In]{}
+		response := &Response[Out]{}
 
 		switch r.Method {
-		case http.MethodGet:
-			params := r.URL.Query()
-
-			jsonString := "{"
-			for key, values := range params {
-				jsonString += "\"" + key + "\":\"" + values[0] + "\","
-			}
-			jsonString = jsonString[:len(jsonString)-1] + "}"
-
-			if err := json.Unmarshal([]byte(jsonString), &in); err != nil {
-				http.Error(w, "please fill all required parameters", http.StatusBadRequest)
-				return
-			}
-
-			err := in.Validate()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-
-			if out, err = f(r.Context(), in); err != nil {
-				if errors.Is(err, pgx.ErrNoRows) {
-					http.Error(w, ErrUserNotFound.Error(), http.StatusNotFound)
-					return
-				}
-				http.Error(w, "invalid request", http.StatusBadRequest)
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			err = json.NewEncoder(w).Encode(out)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
 		case http.MethodPost:
-			err := json.NewDecoder(r.Body).Decode(&in)
-			if err != nil {
-				http.Error(w, "invalid request", http.StatusBadRequest)
-				return
-			}
-
-			err = in.Validate()
+			err := json.NewDecoder(r.Body).Decode(&request.Body)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-
-			if out, err = f(r.Context(), in); err != nil {
-				if errors.Is(err, pgx.ErrNoRows) {
-					http.Error(w, ErrUserNotFound.Error(), http.StatusNotFound)
-					return
-				}
-				http.Error(w, "invalid request", http.StatusBadRequest)
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			err = json.NewEncoder(w).Encode(out)
+		case http.MethodGet:
+			r.ParseForm()
+			decoder := formam.NewDecoder(&formam.DecoderOptions{})
+			err := decoder.Decode(r.Form, &request.Body)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 		}
+
+		err := request.Body.Validate()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		ctx := context.Background()
+
+		response, err = f(ctx, request)
+		if err != nil {
+			var customErr utils.CustomError
+			if errors.As(err, &customErr) {
+				slog.Error(err.Error())
+				http.Error(w, customErr.Message, customErr.StatusCode)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(response.StatusCode)
+		json.NewEncoder(w).Encode(response.Body)
 	}
 }
