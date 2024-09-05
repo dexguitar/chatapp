@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/dexguitar/chatapp/internal/handler"
+	"github.com/dexguitar/chatapp/internal/errs"
 	"github.com/dexguitar/chatapp/internal/model"
-	"github.com/dexguitar/chatapp/internal/utils"
 	"github.com/pkg/errors"
 	pg "github.com/snaffi/pg-helper"
 )
+
+const activeToken = "active_token"
 
 type UserService struct {
 	Repo
@@ -21,74 +22,53 @@ func NewUserService(repo Repo, connPool pg.DB) *UserService {
 	return &UserService{repo, connPool}
 }
 
-func (u *UserService) RegisterUser(ctx context.Context, req *handler.Request[handler.CreateUserReq]) (*handler.Response[*handler.CreateUserRes], error) {
+func (u *UserService) RegisterUser(ctx context.Context, user *model.User) (*model.User, error) {
 	op := "UserService.RegisterUser"
 
-	user := &model.User{
-		Username: req.Body.Username,
-		Email:    req.Body.Email,
-		Password: req.Body.Password,
-	}
-
-	result, err := u.Repo.FindUserByUsername(ctx, user.Username, u.connPool.Replica())
+	result, err := u.Repo.FindUserByUsername(ctx, u.connPool.Replica(), user.Username)
 	if result != nil {
-		return nil, utils.NewCustomError("user already exists", http.StatusConflict, fmt.Errorf("%s: %w", op, errors.New("attempt to create existing user")))
+		return nil, fmt.Errorf("%s: %w", op, errs.ErrUserExists)
+	}
+	if err != nil && !errors.Is(err, errs.ErrNotFound) {
+		return nil, errors.Wrap(err, op)
 	}
 
-	var customError utils.CustomError
-	if errors.As(err, &customError) {
-		if customError.Err != utils.ErrUserNotFound {
-			return nil, errors.Wrap(err, op)
-		}
-	}
-
-	err = u.Repo.CreateUser(ctx, user, u.connPool)
+	res, err := u.Repo.CreateUser(ctx, u.connPool, user)
 	if err != nil {
 		return nil, errors.Wrap(err, op)
 	}
 
-	return &handler.Response[*handler.CreateUserRes]{
-		Body: &handler.CreateUserRes{
-			Username: user.Username,
-			Email:    user.Email,
-		},
-		StatusCode: http.StatusCreated,
+	return &model.User{
+		Username: res.Username,
+		Email:    res.Email,
 	}, nil
 }
 
-func (u *UserService) GetUserById(ctx context.Context, req *handler.Request[handler.GetUserByIdReq]) (*handler.Response[*handler.GetUserByIdRes], error) {
+func (u *UserService) GetUserById(ctx context.Context, id string) (*model.User, error) {
 	op := "UserService.GetUserById"
 
-	user, err := u.Repo.FindUserById(ctx, req.Body.ID, u.connPool.Replica())
+	user, err := u.Repo.FindUserById(ctx, u.connPool.Replica(), id)
 	if err != nil {
 		return nil, errors.Wrap(err, op)
 	}
 
-	return &handler.Response[*handler.GetUserByIdRes]{
-		Body: &handler.GetUserByIdRes{
-			Username: user.Username,
-			Email:    user.Email,
-		},
-		StatusCode: http.StatusOK,
-	}, nil
+	return user, nil
 }
 
-func (u *UserService) Login(ctx context.Context, req *handler.Request[handler.LoginReq]) (*handler.Response[*handler.LoginRes], error) {
+func (u *UserService) Login(ctx context.Context, userInput *model.User) (string, error) {
 	op := "UserService.Login"
 
-	user, err := u.Repo.FindUserByUsername(ctx, req.Body.Username, u.connPool.Replica())
-	if err != nil {
-		return nil, errors.Wrap(err, op)
+	res, err := u.Repo.FindUserByUsername(ctx, u.connPool.Replica(), userInput.Username)
+	if res == nil {
+		return "", fmt.Errorf("%s: %w", op, errs.ErrNotFound)
+	}
+	if err != nil && !errors.Is(err, errs.ErrNotFound) {
+		return "", errors.Wrap(err, op)
 	}
 
-	if user.Password != req.Body.Password {
-		return nil, utils.NewCustomError(utils.ErrInvalidCreds.Error(), http.StatusUnauthorized, utils.ErrInvalidCreds)
+	if res.Password != userInput.Password {
+		return "", errs.NewCustomError(errs.ErrInvalidCreds.Error(), http.StatusUnauthorized, errs.ErrInvalidCreds)
 	}
 
-	return &handler.Response[*handler.LoginRes]{
-		Body: &handler.LoginRes{
-			Token: "active_token",
-		},
-		StatusCode: http.StatusOK,
-	}, nil
+	return activeToken, nil
 }

@@ -3,11 +3,11 @@ package repo
 import (
 	"context"
 	"fmt"
-	"net/http"
 
+	"github.com/dexguitar/chatapp/internal/errs"
 	"github.com/dexguitar/chatapp/internal/model"
-	"github.com/dexguitar/chatapp/internal/utils"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgxutil"
 	pg "github.com/snaffi/pg-helper"
 )
 
@@ -17,54 +17,50 @@ func NewUserRepo() *UserRepository {
 	return &UserRepository{}
 }
 
-func (u *UserRepository) CreateUser(ctx context.Context, user *model.User, db pg.DB) error {
+func (u *UserRepository) CreateUser(ctx context.Context, db pg.DB, user *model.User) (*model.User, error) {
 	op := "UserRepository.CreateUser"
 
-	q := "INSERT INTO users (username, email, password) VALUES ($1, $2, $3)"
-
-	_, err := db.Exec(ctx, q, user.Username, user.Email, user.Password)
+	_, err := pgxutil.Insert(ctx, db, pgx.Identifier{"users"}, []map[string]any{
+		{"username": user.Username, "password": user.Password, "email": user.Email},
+	})
 	if err != nil {
-		return utils.NewCustomError("error creating user", http.StatusInternalServerError, fmt.Errorf("%s: %w", op, err))
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return nil
+	return &model.User{
+		Username: user.Username,
+		Email:    user.Email,
+	}, nil
 }
 
-func (u *UserRepository) FindUserByUsername(ctx context.Context, username string, db pg.Read) (*model.User, error) {
+func (u *UserRepository) FindUserByUsername(ctx context.Context, db pg.Read, username string) (*model.User, error) {
 	op := "UserRepository.FindUserByUsername"
 
-	var user model.User
-
-	q := "SELECT id, username, email, password FROM users WHERE username = $1"
-
-	if err := db.QueryRow(
-		ctx,
-		q,
-		username,
-	).Scan(&user.ID, &user.Username, &user.Email, &user.Password); err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, utils.NewCustomError(utils.ErrUserNotFound.Error(), http.StatusNotFound, utils.ErrUserNotFound)
-		}
-
-		return nil, utils.NewCustomError("internal server error", http.StatusInternalServerError, fmt.Errorf("%s: %w", op, err))
+	q := `select id, username, email, password from users where username = $1`
+	user, err := pgxutil.SelectRow(ctx, db, q, []any{1}, pgx.RowToAddrOfStructByPos[model.User])
+	if err != nil {
+		return handleError(err, op)
 	}
 
-	return &user, nil
+	return user, nil
 }
 
-func (u *UserRepository) FindUserById(ctx context.Context, id string, db pg.Read) (*model.User, error) {
+func (u *UserRepository) FindUserById(ctx context.Context, db pg.Read, id string) (*model.User, error) {
 	op := "UserRepository.FindUserById"
 
-	var user model.User
-	q := "SELECT id, username, email, password FROM users WHERE id = $1"
-
-	if err := db.QueryRow(ctx, q, id).Scan(&user.ID, &user.Username, &user.Email, &user.Password); err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, utils.NewCustomError("user not found", http.StatusNotFound, fmt.Errorf("%s: %w", op, err))
-		}
-
-		return nil, utils.NewCustomError("internal server error", http.StatusInternalServerError, fmt.Errorf("%s: %w", op, err))
+	q := `select id, username, email, password from users where id = $1`
+	user, err := pgxutil.SelectRow(ctx, db, q, []any{1}, pgx.RowToAddrOfStructByPos[model.User])
+	if err != nil {
+		return handleError(err, op)
 	}
 
-	return &user, nil
+	return user, nil
+}
+
+func handleError(e error, op string) (*model.User, error) {
+	if e == pgx.ErrNoRows {
+		return nil, fmt.Errorf("%s: %w", op, errs.ErrNotFound)
+	}
+
+	return nil, fmt.Errorf("%s: %w", op, e)
 }

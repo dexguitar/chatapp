@@ -2,7 +2,11 @@ package handler
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
+	"github.com/dexguitar/chatapp/internal/errs"
+	"github.com/dexguitar/chatapp/internal/model"
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/pkg/errors"
 )
@@ -18,34 +22,79 @@ func NewUserHandler(userService UserService) *UserHandler {
 func (uh *UserHandler) RegisterUser(ctx context.Context, req *Request[CreateUserReq]) (*Response[*CreateUserRes], error) {
 	op := "UserHandler.RegisterUser"
 
-	res, err := uh.UserService.RegisterUser(ctx, req)
+	res, err := uh.UserService.RegisterUser(ctx, &model.User{
+		Username: req.Body.Username,
+		Email:    req.Body.Email,
+		Password: req.Body.Password,
+	})
 	if err != nil {
-		return nil, errors.Wrap(err, op)
+		if errors.Is(err, errs.ErrUserExists) {
+			return nil, errs.NewCustomError(errs.ErrUserExists.Error(), http.StatusConflict, fmt.Errorf("%s: %w", op, err))
+		}
+
+		return nil, err
 	}
 
-	return res, nil
+	return &Response[*CreateUserRes]{
+		Body: &CreateUserRes{
+			Username: res.Username,
+			Email:    res.Email,
+		},
+		StatusCode: http.StatusCreated,
+	}, nil
 }
 
 func (uh *UserHandler) GetUserById(ctx context.Context, req *Request[GetUserByIdReq]) (*Response[*GetUserByIdRes], error) {
 	op := "UserHandler.GetUserById"
 
-	res, err := uh.UserService.GetUserById(ctx, req)
+	user, err := uh.UserService.GetUserById(ctx, req.Body.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, op)
+		if errors.Is(err, errs.ErrNotFound) {
+			return nil, errs.NewCustomError(errs.ErrNotFound.Error(), http.StatusNotFound, err)
+		}
+		return nil, errs.NewCustomError(errs.ErrInternal.Error(), http.StatusInternalServerError, fmt.Errorf("%s: %w", op, err))
 	}
 
-	return res, nil
+	return &Response[*GetUserByIdRes]{
+		Body: &GetUserByIdRes{
+			ID:       user.ID,
+			Username: user.Username,
+			Email:    user.Email,
+		},
+		StatusCode: http.StatusOK,
+	}, nil
 }
 
 func (uh *UserHandler) Login(ctx context.Context, req *Request[LoginReq]) (*Response[*LoginRes], error) {
 	op := "UserHandler.GetUserById"
 
-	res, err := uh.UserService.Login(ctx, req)
+	u := &model.User{
+		Username: req.Body.Username,
+		Password: req.Body.Password,
+	}
+
+	token, err := uh.UserService.Login(ctx, u)
 	if err != nil {
+		if errors.Is(err, errs.ErrNotFound) {
+			return &Response[*LoginRes]{}, errs.NewCustomError(
+				errs.ErrNotFound.Error(), http.StatusNotFound, fmt.Errorf("%s: %w", op, err),
+			)
+		}
+
 		return nil, errors.Wrap(err, op)
 	}
 
-	return res, nil
+	if token == "" {
+		return nil, errs.NewCustomError(
+			errs.ErrInvalidCreds.Error(), http.StatusUnauthorized, fmt.Errorf("%s: %w", op, errs.ErrInvalidCreds),
+		)
+	}
+
+	return &Response[*LoginRes]{
+		Body: &LoginRes{
+			Token: token,
+		},
+	}, nil
 }
 
 type CreateUserReq struct {
@@ -69,10 +118,11 @@ type LoginRes struct {
 }
 
 type GetUserByIdReq struct {
-	ID string `formam:"id"`
+	ID string
 }
 
 type GetUserByIdRes struct {
+	ID       string `json:"id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
 }

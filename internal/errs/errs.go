@@ -1,12 +1,13 @@
-package utils
+package errs
 
 import (
 	"errors"
-	"strings"
 )
 
-var ErrUserNotFound = errors.New("user not found")
+var ErrNotFound = errors.New("not found")
 var ErrInvalidCreds = errors.New("invalid username or password")
+var ErrInternal = errors.New("internal server error")
+var ErrUserExists = errors.New("user already exists")
 
 type CustomError struct {
 	Message    string
@@ -24,8 +25,4 @@ func NewCustomError(message string, statusCode int, err error) CustomError {
 		StatusCode: statusCode,
 		Err:        err,
 	}
-}
-
-func IsNotFoundError(err error) bool {
-	return strings.Contains(err.Error(), "user not found")
 }

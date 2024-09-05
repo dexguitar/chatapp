@@ -16,6 +16,7 @@ func Migrate(c *configs.Config) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
+
 	err = dbConn.Ping()
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
@@ -27,7 +28,7 @@ func Migrate(c *configs.Config) error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(c.MigrationURL, "postgres", driver)
+	m, err := migrate.NewWithDatabaseInstance(c.MigrationURL, "chatapp", driver)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}

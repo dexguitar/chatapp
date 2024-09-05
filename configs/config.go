@@ -25,9 +25,9 @@ func LoadConfig() (config *Config, err error) {
 
 	v.SetDefault("HOST", "0.0.0.0")
 	v.SetDefault("PORT", ":8080")
-	v.SetDefault("DB_PRIMARY", "postgresql://postgres:qwerty@localhost:5432/chatapp?sslmode=disable")
-	v.SetDefault("DB_REPL1", "postgresql://postgres:qwerty@localhost:5433/chatapp?sslmode=disable")
-	v.SetDefault("DB_REPL2", "postgresql://postgres:qwerty@localhost:5434/chatapp?sslmode=disable")
+	v.SetDefault("DB_PRIMARY", "postgres://postgres:qwerty@localhost:5433/chatapp?sslmode=disable")
+	v.SetDefault("DB_REPL1", "postgres://postgres:qwerty@localhost:5434/chatapp?sslmode=disable")
+	v.SetDefault("DB_REPL2", "postgres://postgres:qwerty@localhost:5435/chatapp?sslmode=disable")
 	v.SetDefault("MIGRATION_URL", "file:///db/migrations")
 	v.SetDefault("KAFKA_BROKERS", "localhost:9093,localhost:9094,localhost:9095")
 	v.SetDefault("KAFKA_TOPIC", "chatapp")

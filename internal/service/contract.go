@@ -8,7 +8,7 @@ import (
 )
 
 type Repo interface {
-	CreateUser(ctx context.Context, user *model.User, db pg.DB) error
-	FindUserByUsername(ctx context.Context, username string, db pg.Read) (*model.User, error)
-	FindUserById(ctx context.Context, id string, db pg.Read) (*model.User, error)
+	CreateUser(ctx context.Context, db pg.DB, user *model.User) (*model.User, error)
+	FindUserByUsername(ctx context.Context, db pg.Read, username string) (*model.User, error)
+	FindUserById(ctx context.Context, db pg.Read, id string) (*model.User, error)
 }
