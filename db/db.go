@@ -2,25 +2,53 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
+
+	"github.com/dexguitar/chatapp/configs"
+	psql "github.com/snaffi/pg-helper"
 )
 
-type Database struct {
-	db *sql.DB
-}
+func NewDatabase(c *configs.Config) (*sql.DB, error) {
+	op := "db.NewDatabase"
 
-func NewDatabase(pg string) (*Database, error) {
-	db, err := sql.Open("postgres", pg)
+	db, err := sql.Open("postgres", "postgresql://postgres:qwerty@localhost:5433/chatapp?sslmode=disable")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return &Database{db: db}, nil
+	return db, nil
 }
 
-func (d *Database) Close() {
-	d.db.Close()
+func NewPostgresDB(appConfig *configs.Config) (psql.DB, error) {
+	op := "db.NewPostgresDB"
+
+	poolConf := newPoolConfig(appConfig)
+	replicaSet := psql.WithRoundRobinReplicaSet(poolConf["repl1"], poolConf["repl2"])
+	DB, err := psql.NewConnectionPool(poolConf["primary"], replicaSet)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return DB, nil
 }
 
-func (d *Database) GetDB() *sql.DB {
-	return d.db
+func newPoolConfig(appConfig *configs.Config) map[string]psql.Config {
+	m := make(map[string]psql.Config)
+	m["primary"] = psql.Config{
+		MaxConnections:    100,
+		HealthCheckPeriod: 100,
+		DSN:               appConfig.DBPrimary,
+	}
+	m["repl1"] = psql.Config{
+		MaxConnections:    100,
+		HealthCheckPeriod: 100,
+		DSN:               appConfig.DBRepl1,
+	}
+	m["repl2"] = psql.Config{
+		MaxConnections:    100,
+		HealthCheckPeriod: 100,
+		DSN:               appConfig.DBRepl1,
+	}
+
+	return m
 }
