@@ -1,54 +1,53 @@
-version: '2'
+version: '3.8'
+x-postgres-common:
+  &postgres-common
+  image: postgres:14-alpine
+  user: postgres
+  restart: always
+  healthcheck:
+    test: 'pg_isready -U user --dbname=chatapp'
+    interval: 10s
+    timeout: 5s
+    retries: 5
 
 services:
-  postgresql-master:
-    image: 'docker.io/bitnami/postgresql:15'
+  postgres_primary:
+    <<: *postgres-common
     ports:
-      - '5433:5432'
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: chatapp
+      POSTGRES_PASSWORD: qwerty
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
     volumes:
-      - 'postgresql_master_data:/bitnami/postgresql'
-    environment:
-      - POSTGRESQL_PGAUDIT_LOG=READ,WRITE
-      - POSTGRESQL_LOG_HOSTNAME=true
-      - POSTGRESQL_REPLICATION_MODE=master
-      - POSTGRESQL_REPLICATION_USER=repl_user
-      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
-      - POSTGRESQL_USERNAME=postgres
-      - POSTGRESQL_DATABASE=chatapp
-      - ALLOW_EMPTY_PASSWORD=yes
-  postgresql-slave1:
-    image: 'docker.io/bitnami/postgresql:15'
-    ports:
-      - '5434:5432'
-    depends_on:
-      - postgresql-master
-    environment:
-      - POSTGRESQL_USERNAME=postgres
-      - ALLOW_EMPTY_PASSWORD=yes
-      - POSTGRESQL_MASTER_HOST=postgresql-master
-      - POSTGRESQL_PGAUDIT_LOG=READ,WRITE
-      - POSTGRESQL_LOG_HOSTNAME=true
-      - POSTGRESQL_REPLICATION_MODE=slave
-      - POSTGRESQL_REPLICATION_USER=repl_user
-      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
-      - POSTGRESQL_MASTER_PORT_NUMBER=5433
-  postgresql-slave2:
-    image: 'docker.io/bitnami/postgresql:15'
-    ports:
-      - '5435:5432'
-    depends_on:
-      - postgresql-master
-    environment:
-      - POSTGRESQL_USERNAME=postgres
-      - ALLOW_EMPTY_PASSWORD=yes
-      - POSTGRESQL_MASTER_HOST=postgresql-master
-      - POSTGRESQL_PGAUDIT_LOG=READ,WRITE
-      - POSTGRESQL_LOG_HOSTNAME=true
-      - POSTGRESQL_REPLICATION_MODE=slave
-      - POSTGRESQL_REPLICATION_USER=repl_user
-      - POSTGRESQL_REPLICATION_PASSWORD=repl_password
-      - POSTGRESQL_MASTER_PORT_NUMBER=5433
+      - ./00_init.sql:/docker-entrypoint-initdb.d/00_init.sql
 
-volumes:
-  postgresql_master_data:
-    driver: local
+  postgres_replica1:
+    <<: *postgres-common
+    ports:
+      - 5433:5432
+    environment:
+      PGUSER: replicator
+      PGPASSWORD: replicator_password
+    command: |
+      bash -c "
+      until pg_basebackup --pgdata=/var/lib/postgresql/data -R --slot=replication_slot --host=postgres_primary --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica1...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres
+      "
+    depends_on:
+      - postgres_primary

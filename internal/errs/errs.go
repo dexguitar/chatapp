@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-var ErrNotFound = errors.New("not found")
+var ErrUserNotFound = errors.New("user not found")
 var ErrInvalidCreds = errors.New("invalid username or password")
 var ErrInternal = errors.New("internal server error")
 var ErrUserExists = errors.New("user already exists")

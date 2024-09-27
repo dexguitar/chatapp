@@ -11,7 +11,7 @@ import (
 func NewDatabase(c *configs.Config) (*sql.DB, error) {
 	op := "db.NewDatabase"
 
-	db, err := sql.Open("postgres", "postgresql://postgres:qwerty@localhost:5433/chatapp?sslmode=disable")
+	db, err := sql.Open("postgres", c.DBPrimary)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}

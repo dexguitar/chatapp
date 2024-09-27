@@ -12,3 +12,7 @@ type Repo interface {
 	FindUserByUsername(ctx context.Context, db pg.Read, username string) (*model.User, error)
 	FindUserById(ctx context.Context, db pg.Read, id string) (*model.User, error)
 }
+
+type Queue interface {
+	WriteMessage(ctx context.Context, message *model.Message) error
+}
