@@ -41,9 +41,11 @@ func InitApplication() (*application, error) {
 	if err != nil {
 		return nil, err
 	}
-	hub := service.NewHub(queueQueue)
-	wsHandler := handler.NewWSHandler(hub, queueQueue)
-	httpHandler := handler.InitRouter(userHandler, wsHandler)
+	messageService := service.NewMessageService(queueQueue)
+	messageHandler := handler.NewMessageHandler(messageService)
+	hub := service.NewHub()
+	wsHandler := handler.NewWSHandler(hub, messageService)
+	httpHandler := handler.InitRouter(userHandler, messageHandler, wsHandler)
 	cmdApplication := newApplication(config, httpHandler, queueQueue, hub)
 	return cmdApplication, nil
 }
