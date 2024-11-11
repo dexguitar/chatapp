@@ -5,18 +5,17 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/dexguitar/chatapp/internal/model"
 	"github.com/dexguitar/chatapp/internal/queue"
 	"github.com/gorilla/websocket"
 )
 
 type WSHandler struct {
-	Hub   queue.Hub
-	Queue *queue.Queue
+	Hub            queue.Hub
+	MessageService MessageService
 	*websocket.Upgrader
 }
 
-func NewWSHandler(hub queue.Hub, q *queue.Queue) *WSHandler {
+func NewWSHandler(hub queue.Hub, ms MessageService) *WSHandler {
 	return &WSHandler{
 		Upgrader: &websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -25,8 +24,8 @@ func NewWSHandler(hub queue.Hub, q *queue.Queue) *WSHandler {
 				return true
 			},
 		},
-		Hub:   hub,
-		Queue: q,
+		Hub:            hub,
+		MessageService: ms,
 	}
 }
 
@@ -51,25 +50,11 @@ func (wsh *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	slog.Info(fmt.Sprintf("User `%s` connected", username))
 
 	for {
-		var msg = model.Message{Username: username}
-		err := conn.ReadJSON(&msg)
-		if err != nil {
+		if _, _, err := conn.NextReader(); err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				slog.Error(fmt.Sprintf("Unexpected close error: %v", err))
 			}
 			break
-		}
-
-		// msg.Timestamp = time.Now()
-		// msg.ID = generateUniqueID()
-
-		err = wsh.Queue.WriteMessage(r.Context(), &msg)
-		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to write message to Kafka: %v", err))
-			conn.WriteJSON(map[string]string{
-				"error": "Failed to send message",
-			})
-			return
 		}
 	}
 }

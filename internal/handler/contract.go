@@ -12,6 +12,10 @@ type UserService interface {
 	GetUserById(ctx context.Context, id string) (*model.User, error)
 }
 
+type MessageService interface {
+	SendMessage(ctx context.Context, message *model.Message) error
+}
+
 type Validator interface {
 	Validate() error
 }

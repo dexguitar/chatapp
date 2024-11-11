@@ -12,7 +12,7 @@ type Hub struct {
 	mu    sync.Mutex
 }
 
-func NewHub(queue Queue) *Hub {
+func NewHub() *Hub {
 	return &Hub{Conns: make(map[string]*websocket.Conn)}
 }
 
