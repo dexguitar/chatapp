@@ -10,6 +10,7 @@ import (
 	"github.com/dexguitar/chatapp/configs"
 	"github.com/dexguitar/chatapp/db"
 	"github.com/dexguitar/chatapp/internal/handler"
+	"github.com/dexguitar/chatapp/internal/queue"
 	"github.com/dexguitar/chatapp/internal/repo"
 	"github.com/dexguitar/chatapp/internal/service"
 )
@@ -28,7 +29,23 @@ func InitApplication() (*application, error) {
 	}
 	userService := service.NewUserService(userRepository, postgresqlDB)
 	userHandler := handler.NewUserHandler(userService)
-	httpHandler := handler.InitRouter(userHandler)
-	cmdApplication := newApplication(config, httpHandler)
+	kafkaProducer, err := queue.NewKafkaProducer(config)
+	if err != nil {
+		return nil, err
+	}
+	kafkaConsumer, err := queue.NewKafkaConsumer(config)
+	if err != nil {
+		return nil, err
+	}
+	queueQueue, err := queue.New(kafkaProducer, kafkaConsumer)
+	if err != nil {
+		return nil, err
+	}
+	messageService := service.NewMessageService(queueQueue)
+	messageHandler := handler.NewMessageHandler(messageService)
+	hub := service.NewHub()
+	wsHandler := handler.NewWSHandler(hub, messageService)
+	httpHandler := handler.InitRouter(userHandler, messageHandler, wsHandler)
+	cmdApplication := newApplication(config, httpHandler, queueQueue, hub)
 	return cmdApplication, nil
 }

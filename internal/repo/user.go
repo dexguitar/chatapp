@@ -37,7 +37,7 @@ func (u *UserRepository) FindUserByUsername(ctx context.Context, db pg.Read, use
 	op := "UserRepository.FindUserByUsername"
 
 	q := `select id, username, email, password from users where username = $1`
-	user, err := pgxutil.SelectRow(ctx, db, q, []any{1}, pgx.RowToAddrOfStructByPos[model.User])
+	user, err := pgxutil.SelectRow(ctx, db, q, []any{username}, pgx.RowToAddrOfStructByPos[model.User])
 	if err != nil {
 		return handleError(err, op)
 	}
@@ -49,7 +49,7 @@ func (u *UserRepository) FindUserById(ctx context.Context, db pg.Read, id string
 	op := "UserRepository.FindUserById"
 
 	q := `select id, username, email, password from users where id = $1`
-	user, err := pgxutil.SelectRow(ctx, db, q, []any{1}, pgx.RowToAddrOfStructByPos[model.User])
+	user, err := pgxutil.SelectRow(ctx, db, q, []any{id}, pgx.RowToAddrOfStructByPos[model.User])
 	if err != nil {
 		return handleError(err, op)
 	}
@@ -59,7 +59,7 @@ func (u *UserRepository) FindUserById(ctx context.Context, db pg.Read, id string
 
 func handleError(e error, op string) (*model.User, error) {
 	if e == pgx.ErrNoRows {
-		return nil, fmt.Errorf("%s: %w", op, errs.ErrNotFound)
+		return nil, fmt.Errorf("%s: %w", op, errs.ErrUserNotFound)
 	}
 
 	return nil, fmt.Errorf("%s: %w", op, e)

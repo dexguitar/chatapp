@@ -47,10 +47,10 @@ func (uh *UserHandler) RegisterUser(ctx context.Context, req *Request[CreateUser
 func (uh *UserHandler) GetUserById(ctx context.Context, req *Request[GetUserByIdReq]) (*Response[*GetUserByIdRes], error) {
 	op := "UserHandler.GetUserById"
 
-	user, err := uh.UserService.GetUserById(ctx, req.Body.ID)
+	user, err := uh.UserService.GetUserById(ctx, req.Params.ID)
 	if err != nil {
-		if errors.Is(err, errs.ErrNotFound) {
-			return nil, errs.NewCustomError(errs.ErrNotFound.Error(), http.StatusNotFound, err)
+		if errors.Is(err, errs.ErrUserNotFound) {
+			return nil, errs.NewCustomError(errs.ErrUserNotFound.Error(), http.StatusNotFound, err)
 		}
 		return nil, errs.NewCustomError(errs.ErrInternal.Error(), http.StatusInternalServerError, fmt.Errorf("%s: %w", op, err))
 	}
@@ -75,13 +75,15 @@ func (uh *UserHandler) Login(ctx context.Context, req *Request[LoginReq]) (*Resp
 
 	token, err := uh.UserService.Login(ctx, u)
 	if err != nil {
-		if errors.Is(err, errs.ErrNotFound) {
+		if errors.Is(err, errs.ErrUserNotFound) {
 			return &Response[*LoginRes]{}, errs.NewCustomError(
-				errs.ErrNotFound.Error(), http.StatusNotFound, fmt.Errorf("%s: %w", op, err),
+				errs.ErrUserNotFound.Error(), http.StatusNotFound, fmt.Errorf("%s: %w", op, err),
 			)
 		}
 
-		return nil, errors.Wrap(err, op)
+		return &Response[*LoginRes]{}, errs.NewCustomError(
+			errs.ErrInvalidCreds.Error(), http.StatusBadRequest, fmt.Errorf("%s: %w", op, err),
+		)
 	}
 
 	if token == "" {
@@ -94,6 +96,7 @@ func (uh *UserHandler) Login(ctx context.Context, req *Request[LoginReq]) (*Resp
 		Body: &LoginRes{
 			Token: token,
 		},
+		StatusCode: http.StatusOK,
 	}, nil
 }
 

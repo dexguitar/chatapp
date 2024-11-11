@@ -29,7 +29,7 @@ func (u *UserService) RegisterUser(ctx context.Context, user *model.User) (*mode
 	if result != nil {
 		return nil, fmt.Errorf("%s: %w", op, errs.ErrUserExists)
 	}
-	if err != nil && !errors.Is(err, errs.ErrNotFound) {
+	if err != nil && !errors.Is(err, errs.ErrUserNotFound) {
 		return nil, errors.Wrap(err, op)
 	}
 
@@ -59,11 +59,12 @@ func (u *UserService) Login(ctx context.Context, userInput *model.User) (string,
 	op := "UserService.Login"
 
 	res, err := u.Repo.FindUserByUsername(ctx, u.connPool.Replica(), userInput.Username)
-	if res == nil {
-		return "", fmt.Errorf("%s: %w", op, errs.ErrNotFound)
-	}
-	if err != nil && !errors.Is(err, errs.ErrNotFound) {
-		return "", errors.Wrap(err, op)
+	if err != nil {
+		if errors.Is(err, errs.ErrUserNotFound) {
+			return "", fmt.Errorf("%s: %w", op, errs.ErrInvalidCreds)
+		}
+
+		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
 	if res.Password != userInput.Password {
