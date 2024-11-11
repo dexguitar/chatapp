@@ -13,6 +13,7 @@ type MessageService struct {
 func NewMessageService(queue Queue) *MessageService {
 	return &MessageService{Queue: queue}
 }
+
 func (ms *MessageService) SendMessage(ctx context.Context, message *model.Message) error {
 	// DB write here
 	// .............
