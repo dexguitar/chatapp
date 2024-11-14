@@ -29,6 +29,7 @@ func InitApplication() (*application, error) {
 	}
 	userService := service.NewUserService(userRepository, postgresqlDB)
 	userHandler := handler.NewUserHandler(userService)
+	messageRepository := repo.NewMessageRepo()
 	kafkaProducer, err := queue.NewKafkaProducer(config)
 	if err != nil {
 		return nil, err
@@ -41,7 +42,7 @@ func InitApplication() (*application, error) {
 	if err != nil {
 		return nil, err
 	}
-	messageService := service.NewMessageService(queueQueue)
+	messageService := service.NewMessageService(messageRepository, postgresqlDB, queueQueue)
 	messageHandler := handler.NewMessageHandler(messageService)
 	hub := service.NewHub()
 	wsHandler := handler.NewWSHandler(hub, messageService)

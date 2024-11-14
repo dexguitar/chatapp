@@ -57,7 +57,6 @@ func (uh *UserHandler) GetUserById(ctx context.Context, req *Request[GetUserById
 
 	return &Response[*GetUserByIdRes]{
 		Body: &GetUserByIdRes{
-			ID:       user.ID,
 			Username: user.Username,
 			Email:    user.Email,
 		},
@@ -121,7 +120,7 @@ type LoginRes struct {
 }
 
 type GetUserByIdReq struct {
-	ID string
+	ID string `json:"id"`
 }
 
 type GetUserByIdRes struct {
