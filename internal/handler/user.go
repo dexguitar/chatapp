@@ -8,6 +8,7 @@ import (
 	"github.com/dexguitar/chatapp/internal/errs"
 	"github.com/dexguitar/chatapp/internal/model"
 	validation "github.com/go-ozzo/ozzo-validation"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -47,7 +48,7 @@ func (uh *UserHandler) RegisterUser(ctx context.Context, req *Request[CreateUser
 func (uh *UserHandler) GetUserById(ctx context.Context, req *Request[GetUserByIdReq]) (*Response[*GetUserByIdRes], error) {
 	op := "UserHandler.GetUserById"
 
-	user, err := uh.UserService.GetUserById(ctx, req.Params.ID)
+	user, err := uh.UserService.GetUserById(ctx, req.Params.ID.String())
 	if err != nil {
 		if errors.Is(err, errs.ErrUserNotFound) {
 			return nil, errs.NewCustomError(errs.ErrUserNotFound.Error(), http.StatusNotFound, err)
@@ -57,7 +58,6 @@ func (uh *UserHandler) GetUserById(ctx context.Context, req *Request[GetUserById
 
 	return &Response[*GetUserByIdRes]{
 		Body: &GetUserByIdRes{
-			ID:       user.ID,
 			Username: user.Username,
 			Email:    user.Email,
 		},
@@ -121,13 +121,13 @@ type LoginRes struct {
 }
 
 type GetUserByIdReq struct {
-	ID string
+	ID uuid.UUID `json:"id"`
 }
 
 type GetUserByIdRes struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	ID       uuid.UUID `json:"id"`
+	Username string    `json:"username"`
+	Email    string    `json:"email"`
 }
 
 func (r CreateUserReq) Validate() error {
