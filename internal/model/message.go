@@ -1,7 +1,10 @@
 package model
 
+import "time"
+
 type Message struct {
-	Username string
-	Value    string
-	Receiver string
+	Timestamp time.Time
+	Username  string
+	Value     string
+	Receiver  string
 }
