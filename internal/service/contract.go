@@ -7,10 +7,14 @@ import (
 	pg "github.com/snaffi/pg-helper"
 )
 
-type Repo interface {
+type UserRepo interface {
 	CreateUser(ctx context.Context, db pg.DB, user *model.User) (*model.User, error)
 	FindUserByUsername(ctx context.Context, db pg.Read, username string) (*model.User, error)
 	FindUserById(ctx context.Context, db pg.Read, id string) (*model.User, error)
+}
+
+type MessageRepo interface {
+	StoreMessage(ctx context.Context, db pg.DB, message *model.Message) error
 }
 
 type Queue interface {

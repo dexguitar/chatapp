@@ -14,18 +14,18 @@ import (
 const activeToken = "active_token"
 
 type UserService struct {
-	Repo
+	UserRepo
 	connPool pg.DB
 }
 
-func NewUserService(repo Repo, connPool pg.DB) *UserService {
+func NewUserService(repo UserRepo, connPool pg.DB) *UserService {
 	return &UserService{repo, connPool}
 }
 
 func (u *UserService) RegisterUser(ctx context.Context, user *model.User) (*model.User, error) {
 	op := "UserService.RegisterUser"
 
-	result, err := u.Repo.FindUserByUsername(ctx, u.connPool.Replica(), user.Username)
+	result, err := u.UserRepo.FindUserByUsername(ctx, u.connPool.Replica(), user.Username)
 	if result != nil {
 		return nil, fmt.Errorf("%s: %w", op, errs.ErrUserExists)
 	}
@@ -33,7 +33,7 @@ func (u *UserService) RegisterUser(ctx context.Context, user *model.User) (*mode
 		return nil, errors.Wrap(err, op)
 	}
 
-	res, err := u.Repo.CreateUser(ctx, u.connPool, user)
+	res, err := u.UserRepo.CreateUser(ctx, u.connPool, user)
 	if err != nil {
 		return nil, errors.Wrap(err, op)
 	}
@@ -47,7 +47,7 @@ func (u *UserService) RegisterUser(ctx context.Context, user *model.User) (*mode
 func (u *UserService) GetUserById(ctx context.Context, id string) (*model.User, error) {
 	op := "UserService.GetUserById"
 
-	user, err := u.Repo.FindUserById(ctx, u.connPool.Replica(), id)
+	user, err := u.UserRepo.FindUserById(ctx, u.connPool.Replica(), id)
 	if err != nil {
 		return nil, errors.Wrap(err, op)
 	}
@@ -58,7 +58,7 @@ func (u *UserService) GetUserById(ctx context.Context, id string) (*model.User, 
 func (u *UserService) Login(ctx context.Context, userInput *model.User) (string, error) {
 	op := "UserService.Login"
 
-	res, err := u.Repo.FindUserByUsername(ctx, u.connPool.Replica(), userInput.Username)
+	res, err := u.UserRepo.FindUserByUsername(ctx, u.connPool.Replica(), userInput.Username)
 	if err != nil {
 		if errors.Is(err, errs.ErrUserNotFound) {
 			return "", fmt.Errorf("%s: %w", op, errs.ErrInvalidCreds)
