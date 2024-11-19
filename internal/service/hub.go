@@ -26,13 +26,13 @@ func (h *Hub) GetConns() map[string]*websocket.Conn {
 	return h.Conns
 }
 
-func (h *Hub) RemoveConn(username string) {
-	delete(h.Conns, username)
+func (h *Hub) RemoveConn(userID string) {
+	delete(h.Conns, userID)
 }
 
 func (h *Hub) Broadcast(m *sarama.ConsumerMessage) {
-	for username, conn := range h.Conns {
-		if username == getHeaderValue(m, "receiver") {
+	for userID, conn := range h.Conns {
+		if userID == getHeaderValue(m, "receiver") {
 			conn.WriteMessage(websocket.TextMessage, m.Value)
 		}
 	}

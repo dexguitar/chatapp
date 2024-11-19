@@ -6,8 +6,8 @@ import (
 )
 
 type Hub interface {
-	AddConn(username string, conn *websocket.Conn)
+	AddConn(userID string, conn *websocket.Conn)
 	GetConns() map[string]*websocket.Conn
-	RemoveConn(username string)
+	RemoveConn(userID string)
 	Broadcast(m *sarama.ConsumerMessage)
 }

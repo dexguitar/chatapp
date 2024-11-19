@@ -21,7 +21,7 @@ func (m *MessageRepository) StoreMessage(ctx context.Context, db pg.DB, message 
 	op := "MessageRepository.StoreMessage"
 
 	_, err := pgxutil.Insert(ctx, db, pgx.Identifier{"messages"}, []map[string]any{
-		{"timestamp": time.Now(), "sender_id": message.Username, "receiver_id": message.Receiver, "content": message.Value},
+		{"timestamp": time.Now().UTC(), "sender_id": message.Sender, "receiver_id": message.Receiver, "content": message.Content},
 	})
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)

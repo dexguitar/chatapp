@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/IBM/sarama"
 	"github.com/dexguitar/chatapp/configs"
@@ -37,11 +38,11 @@ func (kw *KafkaProducer) ProduceMessage(ctx context.Context, msg *model.Message)
 	_, _, err := kw.SyncProducer.SendMessage(
 		&sarama.ProducerMessage{
 			Topic: topic,
-			Value: sarama.StringEncoder(fmt.Sprintf("`%s` says `%s` to `%s`", msg.Username, msg.Value, msg.Receiver)),
+			Value: sarama.StringEncoder(fmt.Sprintf("`%d` says `%s` to `%d`", msg.Sender, msg.Content, msg.Receiver)),
 			Headers: []sarama.RecordHeader{
-				{Key: []byte("username"), Value: []byte(msg.Username)},
-				{Key: []byte("value"), Value: []byte(msg.Value)},
-				{Key: []byte("receiver"), Value: []byte(msg.Receiver)},
+				{Key: []byte("sender"), Value: []byte(strconv.Itoa(msg.Sender))},
+				{Key: []byte("content"), Value: []byte(msg.Content)},
+				{Key: []byte("receiver"), Value: []byte(strconv.Itoa(msg.Receiver))},
 			},
 		},
 	)

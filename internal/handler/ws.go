@@ -37,17 +37,17 @@ func (wsh *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	username := r.URL.Query().Get("username")
-	if username == "" {
-		slog.Error("Username not provided")
-		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Username required"))
+	userID := r.URL.Query().Get("userID")
+	if userID == "" {
+		slog.Error("userID not provided")
+		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "userID required"))
 		return
 	}
 
-	wsh.Hub.AddConn(username, conn)
-	defer wsh.Hub.RemoveConn(username)
+	wsh.Hub.AddConn(userID, conn)
+	defer wsh.Hub.RemoveConn(userID)
 
-	slog.Info(fmt.Sprintf("User `%s` connected", username))
+	slog.Info(fmt.Sprintf("User `%s` connected", userID))
 
 	for {
 		if _, _, err := conn.NextReader(); err != nil {
